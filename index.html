@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Créer ma photo de soutien</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#f4f4f4;
+text-align:center;
+padding:30px;
+margin:0;
+}
+
+h1{
+color:#9c1c6a;
+}
+
+#upload{
+display:none;
+}
+
+.upload-btn{
+display:inline-block;
+background:#9c1c6a;
+color:white;
+padding:18px 30px;
+font-size:18px;
+border-radius:10px;
+cursor:pointer;
+margin-top:20px;
+}
+
+.designs{
+margin-top:20px;
+}
+
+.designs img{
+width:90px;
+margin:10px;
+cursor:pointer;
+border-radius:8px;
+border:3px solid transparent;
+}
+
+.designs img:hover{
+border-color:#9c1c6a;
+}
+
+canvas{
+max-width:95%;
+margin-top:20px;
+border-radius:10px;
+}
+
+.download-btn{
+background:black;
+color:white;
+border:none;
+padding:14px 22px;
+font-size:16px;
+border-radius:8px;
+margin-top:20px;
+cursor:pointer;
+display:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Créer ma photo de soutien</h1>
+
+<label for="upload" class="upload-btn">
+Ajouter ma photo
+</label>
+
+<input type="file" id="upload" accept="image/*">
+
+<div class="designs">
+
+<p>Choisissez un design :</p>
+
+<img src="vignette1.png" onclick="changeOverlay('vignette1.png')">
+<img src="vignette2.png" onclick="changeOverlay('vignette2.png')">
+<img src="vignette3.png" onclick="changeOverlay('vignette3.png')">
+
+</div>
+
+<br>
+
+<canvas id="canvas"></canvas>
+
+<br>
+
+<button id="download" class="download-btn">
+Télécharger
+</button>
+
+<script>
+
+const upload = document.getElementById("upload");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const downloadBtn = document.getElementById("download");
+
+let overlay = new Image();
+overlay.src = "vignette1.png";
+
+let userImage = null;
+
+function changeOverlay(src){
+
+overlay.src = src;
+
+if(userImage){
+drawImage();
+}
+
+}
+
+upload.addEventListener("change", function(e){
+
+const file = e.target.files[0];
+
+const reader = new FileReader();
+
+reader.onload = function(event){
+
+userImage = new Image();
+
+userImage.onload = function(){
+
+drawImage();
+
+}
+
+userImage.src = event.target.result;
+
+}
+
+reader.readAsDataURL(file);
+
+});
+
+function drawImage(){
+
+canvas.width = 1080;
+canvas.height = 1080;
+
+let ratio = Math.min(
+canvas.width / userImage.width,
+canvas.height / userImage.height
+);
+
+let newWidth = userImage.width * ratio;
+let newHeight = userImage.height * ratio;
+
+let x = (canvas.width - newWidth) / 2;
+let y = (canvas.height - newHeight) / 2;
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ctx.drawImage(userImage,x,y,newWidth,newHeight);
+
+overlay.onload = function(){
+ctx.drawImage(overlay,0,0,canvas.width,canvas.height);
+}
+
+downloadBtn.style.display="inline-block";
+
+}
+
+downloadBtn.addEventListener("click",function(){
+
+canvas.toBlob(function(blob){
+
+const url = URL.createObjectURL(blob);
+
+const a = document.createElement("a");
+a.href = url;
+a.download = "photo-soutien.png";
+a.click();
+
+});
+
+});
+
+</script>
+
+</body>
+</html>
