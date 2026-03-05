@@ -10,10 +10,10 @@
 <style>
 
 body{
-font-family:Arial;
+font-family:Arial, sans-serif;
 background:#f4f4f4;
 text-align:center;
-padding:30px;
+padding:25px;
 margin:0;
 }
 
@@ -37,19 +37,28 @@ margin-top:20px;
 }
 
 .designs{
-margin-top:20px;
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(90px,1fr));
+gap:12px;
+max-width:500px;
+margin:25px auto;
 }
 
 .designs img{
-width:90px;
-margin:10px;
+width:100%;
 cursor:pointer;
-border-radius:8px;
+border-radius:10px;
 border:3px solid transparent;
+transition:all 0.2s;
 }
 
 .designs img:hover{
+transform:scale(1.05);
+}
+
+.designs img.active{
 border-color:#9c1c6a;
+transform:scale(1.15);
 }
 
 canvas{
@@ -62,9 +71,9 @@ border-radius:10px;
 background:black;
 color:white;
 border:none;
-padding:14px 22px;
+padding:15px 25px;
 font-size:16px;
-border-radius:8px;
+border-radius:10px;
 margin-top:20px;
 cursor:pointer;
 display:none;
@@ -79,29 +88,28 @@ display:none;
 <h1>Créer ma photo de soutien</h1>
 
 <label for="upload" class="upload-btn">
-Ajouter ma photo
+📷 Ajouter ma photo
 </label>
 
 <input type="file" id="upload" accept="image/*">
 
-<div class="designs">
-
 <p>Choisissez un design :</p>
 
-<img src="vignette1.png" onclick="changeOverlay('vignette1.png')">
-<img src="vignette2.png" onclick="changeOverlay('vignette2.png')">
-<img src="vignette3.png" onclick="changeOverlay('vignette3.png')">
+<div class="designs">
+
+<img src="vignette1.png" onclick="changeOverlay('vignette1.png', this)">
+<img src="vignette2.png" onclick="changeOverlay('vignette2.png', this)">
+<img src="vignette3.png" onclick="changeOverlay('vignette3.png', this)">
+<img src="vignette4.png" onclick="changeOverlay('vignette4.png', this)">
 
 </div>
-
-<br>
 
 <canvas id="canvas"></canvas>
 
 <br>
 
 <button id="download" class="download-btn">
-Télécharger
+Télécharger ma photo
 </button>
 
 <script>
@@ -116,9 +124,15 @@ overlay.src = "vignette1.png";
 
 let userImage = null;
 
-function changeOverlay(src){
+function changeOverlay(src, element){
 
 overlay.src = src;
+
+document.querySelectorAll(".designs img").forEach(img=>{
+img.classList.remove("active");
+});
+
+element.classList.add("active");
 
 if(userImage){
 drawImage();
@@ -137,9 +151,7 @@ reader.onload = function(event){
 userImage = new Image();
 
 userImage.onload = function(){
-
 drawImage();
-
 }
 
 userImage.src = event.target.result;
