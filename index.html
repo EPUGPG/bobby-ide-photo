@@ -1,183 +1,156 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Je vote Bobby Ide</title>
 
-  <style>
-    body{
-      font-family: Arial, sans-serif;
-      background:#fafafa;
-      text-align:center;
-      padding:28px 16px;
-      margin:0;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    h1{ color:#9c1c6a; margin:10px 0 6px; }
-    p{ margin:0 0 18px; }
+<title>Je vote Bobby Ide</title>
 
-    /* Canvas */
-    canvas{
-      width: min(520px, 95vw);
-      height: auto;
-      margin-top:16px;
-      border-radius:12px;
-      background:white;
-    }
+<style>
 
-    /* Gros bouton upload (on cache l'input natif) */
-    #upload{ display:none; }
+body{
+font-family:Arial;
+background:#fafafa;
+text-align:center;
+padding:30px;
+margin:0;
+}
 
-    .upload-btn{
-      display:inline-block;
-      background:#9c1c6a;
-      color:#fff;
-      padding:18px 26px;
-      font-size:20px;
-      border-radius:12px;
-      cursor:pointer;
-      box-shadow:0 4px 10px rgba(0,0,0,0.18);
-      user-select:none;
-    }
-    .upload-btn:active{ transform: scale(0.99); }
+h1{
+color:#9c1c6a;
+}
 
-    /* Bouton télécharger fixé en haut à droite */
-    .download-btn{
-      position:fixed;
-      top:16px;
-      right:16px;
-      background:#111;
-      color:white;
-      border:none;
-      padding:12px 16px;
-      font-size:16px;
-      border-radius:10px;
-      cursor:pointer;
-      z-index:999;
-      box-shadow:0 4px 10px rgba(0,0,0,0.25);
-      display:none;
-    }
-    .download-btn:hover{ opacity:0.92; }
+canvas{
+max-width:95%;
+margin-top:20px;
+border-radius:12px;
+}
 
-    /* Petit bloc aide iPhone */
-    .hint{
-      font-size:13px;
-      opacity:0.75;
-      margin-top:10px;
-      line-height:1.3;
-    }
-  </style>
+#upload{
+display:none;
+}
+
+.upload-btn{
+display:inline-block;
+background:#9c1c6a;
+color:white;
+padding:18px 28px;
+font-size:20px;
+border-radius:12px;
+cursor:pointer;
+margin-top:20px;
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
+
+.download-btn{
+position:fixed;
+top:15px;
+right:15px;
+background:black;
+color:white;
+border:none;
+padding:12px 18px;
+font-size:16px;
+border-radius:10px;
+cursor:pointer;
+z-index:999;
+display:none;
+}
+
+</style>
+
 </head>
 
 <body>
-  <h1>Je vote Bobby Ide</h1>
-  <p>Charge ta photo, ajoute la vignette, puis télécharge.</p>
 
-  <label for="upload" class="upload-btn">📷 Ajouter ma photo</label>
-  <input type="file" id="upload" accept="image/*" />
+<h1>Je vote Bobby Ide</h1>
 
-  <br />
-  <canvas id="canvas"></canvas>
+<label for="upload" class="upload-btn">
+📷 Ajouter ma photo
+</label>
 
-  <button id="download" class="download-btn">Télécharger</button>
+<input type="file" id="upload" accept="image/*">
 
-  <div class="hint">
-    Sur iPhone : si “Télécharger” ouvre un menu, choisis <b>Enregistrer l’image</b> ou <b>Enregistrer dans Fichiers</b>.
-  </div>
+<br>
 
-  <script>
-    const upload = document.getElementById("upload");
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-    const downloadBtn = document.getElementById("download");
+<canvas id="canvas"></canvas>
 
-    // Charge la vignette une fois
-    const overlay = new Image();
-    overlay.src = "vignette.png";
+<button id="download" class="download-btn">
+Télécharger
+</button>
 
-    function drawCover(img, cw, ch) {
-      // Remplit le canvas sans déformer (style "cover"), puis centre
-      const scale = Math.max(cw / img.width, ch / img.height);
-      const w = img.width * scale;
-      const h = img.height * scale;
-      const x = (cw - w) / 2;
-      const y = (ch - h) / 2;
-      ctx.drawImage(img, x, y, w, h);
-    }
+<script>
 
-    upload.addEventListener("change", (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
+const upload = document.getElementById("upload");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const downloadBtn = document.getElementById("download");
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          // Format carré propre pour réseaux sociaux
-          canvas.width = 1080;
-          canvas.height = 1080;
+const overlay = new Image();
+overlay.src = "vignette.png";
 
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+upload.addEventListener("change", function(e){
 
-          // Dessine la photo sans déformation
-          drawCover(img, canvas.width, canvas.height);
+const file = e.target.files[0];
 
-          // Dessine la vignette par-dessus (plein écran)
-          const drawOverlay = () => {
-            ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
-            downloadBtn.style.display = "block";
-          };
+const reader = new FileReader();
 
-          if (overlay.complete) drawOverlay();
-          else overlay.onload = drawOverlay;
-        };
+reader.onload = function(event){
 
-        img.src = event.target.result;
-      };
+const img = new Image();
 
-      reader.readAsDataURL(file);
-    });
+img.onload = function(){
 
-    // Téléchargement compatible iPhone (partage) + fallback onglet
-    downloadBtn.addEventListener("click", async () => {
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
+canvas.width = 1080;
+canvas.height = 1080;
 
-        const file = new File([blob], "photo-campagne.png", { type: "image/png" });
+ctx.clearRect(0,0,canvas.width,canvas.height);
 
-        // iOS / mobile : partage si possible (meilleur)
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({
-              files: [file],
-              title: "Photo de campagne",
-              text: "Je vote Bobby Ide"
-            });
-            return;
-          } catch (e) {
-            // l'utilisateur peut annuler → on passe au fallback
-          }
-        }
+let ratio = Math.min(
+canvas.width / img.width,
+canvas.height / img.height
+);
 
-        // Desktop / fallback : download classique
-        const url = URL.createObjectURL(blob);
+let newWidth = img.width * ratio;
+let newHeight = img.height * ratio;
 
-        // Certains navigateurs (iOS) ne respectent pas download → on ouvre un onglet
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "photo-campagne.png";
+let x = (canvas.width - newWidth) / 2;
+let y = (canvas.height - newHeight) / 2;
 
-        // Essaye download, sinon ouvre
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+ctx.drawImage(img,x,y,newWidth,newHeight);
 
-        // Si iOS ignore download, l'utilisateur aura l'image ouverte/chargée → long press pour enregistrer
-        // On garde l'URL un moment puis on libère
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
-      }, "image/png");
-    });
-  </script>
+ctx.drawImage(overlay,0,0,canvas.width,canvas.height);
+
+downloadBtn.style.display="block";
+
+}
+
+img.src = event.target.result;
+
+}
+
+reader.readAsDataURL(file);
+
+});
+
+downloadBtn.addEventListener("click",function(){
+
+canvas.toBlob(function(blob){
+
+const url = URL.createObjectURL(blob);
+
+const a = document.createElement("a");
+
+a.href = url;
+a.download = "photo-campagne.png";
+a.click();
+
+});
+
+});
+
+</script>
+
 </body>
 </html>
