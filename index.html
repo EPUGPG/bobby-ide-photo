@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Je vote Bobby Ide</title>
+
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      background:#fafafa;
+      text-align:center;
+      padding:24px 14px;
+      margin:0;
+    }
+    h1{ color:#9c1c6a; margin:10px 0 6px; }
+    p{ margin:0 0 14px; }
+
+    /* Canvas */
+    canvas{
+      width: min(520px, 95vw);
+      height: auto;
+      margin-top:14px;
+      border-radius:12px;
+      background:white;
+      touch-action:none; /* important pour drag sur mobile */
+    }
+
+    /* Upload */
+    #upload{ display:none; }
+    .upload-btn{
+      display:inline-block;
+      background:#9c1c6a;
+      color:white;
+      padding:18px 26px;
+      font-size:20px;
+      border-radius:12px;
+      cursor:pointer;
+      box-shadow:0 4px 10px rgba(0,0,0,0.18);
+      user-select:none;
+    }
+
+    /* Panneau réglages */
+    .controls{
+      width:min(520px, 95vw);
+      margin:14px auto 0;
+      background:#fff;
+      border-radius:12px;
+      padding:12px 14px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.08);
+      display:none;
+      text-align:left;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      margin:10px 0;
+    }
+    .row label{
+      font-size:14px;
+      opacity:0.85;
+      min-width:70px;
+    }
+    input[type="range"]{
+      width:100%;
+    }
+    .btn{
+      border:none;
+      padding:12px 14px;
+      border-radius:10px;
+      cursor:pointer;
+      font-size:14px;
+    }
+    .btn.secondary{
+      background:#eee;
+    }
+
+    /* Bouton télécharger en haut à droite */
+    .download-btn{
+      position:fixed;
+      top:16px;
+      right:16px;
+      background:#111;
+      color:white;
+      border:none;
+      padding:12px 16px;
+      font-size:16px;
+      border-radius:10px;
+      cursor:pointer;
+      z-index:999;
+      box-shadow:0 4px 10px rgba(0,0,0,0.25);
+      display:none;
+    }
+
+    .hint{
+      width:min(520px, 95vw);
+      margin:10px auto 0;
+      font-size:13px;
+      opacity:0.75;
+      line-height:1.35;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Je vote Bobby Ide</h1>
+  <p>Ajoute ta photo, ajuste (zoom + déplacement), puis télécharge.</p>
+
+  <label for="upload" class="upload-btn">📷 Ajouter ma photo</label>
+  <input type="file" id="upload" accept="image/*" />
+
+  <br />
+  <canvas id="canvas"></canvas>
+
+  <div class="controls" id="controls">
+    <div class="row">
+      <label for="zoom">Zoom</label>
+      <input id="zoom" type="range" min="0.5" max="3" value="1" step="0.01" />
+    </div>
+
+    <div class="row">
+      <button class="btn secondary" id="recenter">Recentrer</button>
+      <button class="btn secondary" id="fit">Adapter (sans couper)</button>
+    </div>
+
+    <div class="hint">
+      Astuce : fais glisser la photo avec le doigt pour la placer dans le cercle.
+      Sur iPhone, le bouton Télécharger peut ouvrir le menu Partager → “Enregistrer l’image”.
+    </div>
+  </div>
+
+  <button id="download" class="download-btn">Télécharger</button>
+
+  <script>
+    const upload = document.getElementById("upload");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const downloadBtn = document.getElementById("download");
+    const controls = document.getElementById("controls");
+    const zoomSlider = document.getElementById("zoom");
+    const recenterBtn = document.getElementById("recenter");
+    const fitBtn = document.getElementById("fit");
+
+    // Taille finale réseau sociaux
+    const CW = 1080, CH = 1080;
+    canvas.width = CW; canvas.height = CH;
+
+    // Vignette
+    const overlay = new Image();
+    overlay.src = "vignette.png";
+
+    // Image utilisateur
+    let photo = null;
+
+    // Transform
+    let scale = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    // Drag
+    let dragging = false;
+    let lastX = 0, lastY = 0;
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    // Calcule un "fit" (contain) : aucune coupe
+    function computeFit(img){
+      const s = Math.min(CW / img.width, CH / img.height);
+      const w = img.width * s;
+      const h = img.height * s;
+      const x = (CW - w) / 2;
+      const y = (CH - h) / 2;
+      return {s, x, y, w, h};
+    }
+
+    // Calcule un "cover" (remplit tout, peut couper) — utile si tu veux, mais on part sur fit
+    function computeCover(img){
+      const s = Math.max(CW / img.width, CH / img.height);
+      const w = img.width * s;
+      const h = img.height * s;
+      const x = (CW - w) / 2;
+      const y = (CH - h) / 2;
+      return {s, x, y, w, h};
+    }
+
+    function redraw(){
+      ctx.clearRect(0,0,CW,CH);
+      // fond blanc (au cas où l'image ne remplit pas)
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0,0,CW,CH);
+
+      if(photo){
+        const base = computeFit(photo); // base "sans couper"
+        const s = base.s * scale;
+
+        const w = photo.width * s;
+        const h = photo.height * s;
+
+        // point de départ: centré (fit), puis offsets
+        const x = (CW - w)/2 + offsetX;
+        const y = (CH - h)/2 + offsetY;
+
+        ctx.drawImage(photo, x, y, w, h);
+      }
+
+      // overlay au-dessus
+      if(overlay.complete){
+        ctx.drawImage(overlay, 0, 0, CW, CH);
+      }
+    }
+
+    // Convertit coord écran -> coord canvas (important car canvas responsive)
+    function clientToCanvas(clientX, clientY){
+      const rect = canvas.getBoundingClientRect();
+      const x = (clientX - rect.left) * (CW / rect.width);
+      const y = (clientY - rect.top) * (CH / rect.height);
+      return {x,y};
+    }
+
+    upload.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          photo = img;
+
+          // reset état
+          scale = 1;
+          offsetX = 0;
+          offsetY = 0;
+          zoomSlider.value = "1";
+
+          controls.style.display = "block";
+          downloadBtn.style.display = "block";
+
+          redraw();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Slider zoom
+    zoomSlider.addEventListener("input", () => {
+      scale = parseFloat(zoomSlider.value);
+      redraw();
+    });
+
+    // Recentrer
+    recenterBtn.addEventListener("click", () => {
+      offsetX = 0; offsetY = 0;
+      redraw();
+    });
+
+    // Adapter (sans couper) = reset zoom + offsets
+    fitBtn.addEventListener("click", () => {
+      scale = 1;
+      offsetX = 0; offsetY = 0;
+      zoomSlider.value = "1";
+      redraw();
+    });
+
+    // Drag (souris + tactile via Pointer Events)
+    canvas.addEventListener("pointerdown", (ev) => {
+      if(!photo) return;
+      dragging = true;
+      canvas.setPointerCapture(ev.pointerId);
+      const p = clientToCanvas(ev.clientX, ev.clientY);
+      lastX = p.x; lastY = p.y;
+    });
+
+    canvas.addEventListener("pointermove", (ev) => {
+      if(!dragging || !photo) return;
+      const p = clientToCanvas(ev.clientX, ev.clientY);
+      const dx = p.x - lastX;
+      const dy = p.y - lastY;
+      lastX = p.x; lastY = p.y;
+
+      offsetX += dx;
+      offsetY += dy;
+      redraw();
+    });
+
+    canvas.addEventListener("pointerup", () => dragging = false);
+    canvas.addEventListener("pointercancel", () => dragging = false);
+
+    // Téléchargement / partage mobile
+    downloadBtn.addEventListener("click", async () => {
+      canvas.toBlob(async (blob) => {
+        if(!blob) return;
+
+        const file = new File([blob], "photo-campagne.png", { type: "image/png" });
+
+        // iPhone / mobile : partage si possible
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try{
+            await navigator.share({
+              files: [file],
+              title: "Photo de campagne",
+              text: "Je vote Bobby Ide"
+            });
+            return;
+          }catch(e){
+            // utilisateur annule -> fallback
+          }
+        }
+
+        // Fallback desktop
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "photo-campagne.png";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      }, "image/png");
+    });
+
+    // Redraw quand vignette finit de charger
+    overlay.onload = redraw;
+  </script>
+</body>
+</html>
